@@ -18,8 +18,6 @@ RUN conda create --quiet --yes -p $CONDA_DIR/envs/hail python=3.7 ipython ipyker
     conda clean --all -f -y
 RUN $CONDA_DIR/envs/hail/bin/pip install hail
 RUN $CONDA_DIR/envs/hail/bin/python -m ipykernel install --user --name=hail
-    # fix-permissions $CONDA_DIR && \
-    # fix-permissions /home/$NB_USER
 
 # Install VS code-server
 ARG VSCODE_VERSION=3.4.1
@@ -32,25 +30,22 @@ RUN cd /opt \
   && code-server --install-extension ms-python.python \
   && code-server --install-extension njpwerner.autodocstring
 COPY dev.code-workspace $WORK_DIR/
-# Fix permissions on /home/jovyan/.local/share/code-server
-# RUN fix-permissions /home/$NB_USER
-
 COPY start-all.sh start-vscode.sh /usr/local/bin/
 RUN chmod a+rx /usr/local/bin/start-all.sh /usr/local/bin/start-vscode.sh
 
-USER $NB_UID
+# Install misc system packages
+RUN apt-get update && apt-get install -y openssh-client \
+    && rm -rf /var/lib/apt/lists/*
 
-ARG SGKIT_REPO_URL=https://github.com/eric-czech/sgkit
-ARG SGKIT_PLINK_REPO_URL=https://github.com/eric-czech/sgkit-plink
+# Download/install target repos
+ARG SGKIT_REPO=eric-czech/sgkit.git
+ARG SGKIT_PLINK_REPO=eric-czech/sgkit-plink.git
 RUN cd $WORK_DIR/repos && \
-  git clone $SGKIT_REPO_URL && \
-  git clone $SGKIT_PLINK_REPO_URL
+  git clone https://github.com/$SGKIT_REPO && \
+  git clone https://github.com/$SGKIT_PLINK_REPO
 ENV PYTHONPATH="${PYTHONPATH}:$WORK_DIR/repos/sgkit"
 ENV PYTHONPATH="${PYTHONPATH}:$WORK_DIR/repos/sgkit-plink"
 #ENV PYLINTRC="$WORK_DIR/repos/public-data-source/.pylintrc"
-
-USER root
-
 
 # Install pysnptools separately (does not work as pip install with conda env update)
 #RUN apt-get update && apt-get install -y g++
@@ -67,4 +62,16 @@ RUN fix-permissions $CONDA_DIR && \
 
 USER $NB_UID
 
-CMD ["start-all.sh"]
+# Initialize github authentication for ssh access on run
+RUN mkdir $HOME/.ssh && chmod 700 $HOME/.ssh && \
+  ssh-keyscan -t rsa github.com >> $HOME/.ssh/known_hosts
+ENV GIT_USERNAME=eric-czech
+ENV GIT_USEREMAIL=eric.allen.czech@gmail.com
+ENV SGKIT_REPO=$SGKIT_REPO
+ENV SGKIT_PLINK_REPO=$SGKIT_PLINK_REPO
+
+CMD git config --global user.name $GIT_USERNAME && \
+  git config --global user.email $GIT_USEREMAIL && \
+  cd $WORK_DIR/repos/sgkit && git remote set-url origin git@github.com:$SGKIT_REPO && cd - && \
+  cd $WORK_DIR/repos/sgkit-plink && git remote set-url origin git@github.com:$SGKIT_PLINK_REPO && cd - && \
+  start-all.sh
