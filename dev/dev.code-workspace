@@ -1,0 +1,9 @@
+{
+        "folders": [
+                {"path": "repos/sgkit"},
+                {"path": "repos/sgkit-plink"}
+        ],
+        "settings": {
+            "autoDocstring.docstringFormat": "numpy"
+        }
+}
