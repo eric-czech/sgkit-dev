@@ -38,12 +38,16 @@ RUN apt-get update && apt-get install -y openssh-client \
     && rm -rf /var/lib/apt/lists/*
 
 # Download/install target repos
+ARG GIT_USERNAME=eric-czech
+ARG GIT_USEREMAIL=eric.allen.czech@gmail.com
 ARG SGKIT_REPO=eric-czech/sgkit.git
 ARG SGKIT_PLINK_REPO=eric-czech/sgkit-plink.git
+ENV SGKIT_REPO=$SGKIT_REPO
+ENV SGKIT_PLINK_REPO=$SGKIT_PLINK_REPO
 RUN cd $WORK_DIR/repos && \
   git clone https://github.com/$SGKIT_REPO && \
   git clone https://github.com/$SGKIT_PLINK_REPO
-ENV PYTHONPATH="${PYTHONPATH}:$WORK_DIR/repos/sgkit"
+#ENV PYTHONPATH="${PYTHONPATH}:$WORK_DIR/repos/sgkit"
 ENV PYTHONPATH="${PYTHONPATH}:$WORK_DIR/repos/sgkit-plink"
 #ENV PYLINTRC="$WORK_DIR/repos/public-data-source/.pylintrc"
 
@@ -52,6 +56,7 @@ ENV PYTHONPATH="${PYTHONPATH}:$WORK_DIR/repos/sgkit-plink"
 #RUN /conda/envs/rapids/bin/pip install --no-cache-dir pysnptools==0.4.11
 
 # See: https://jupyter-docker-stacks.readthedocs.io/en/latest/using/recipes.html#using-pip-install-or-conda-install-in-a-child-docker-image
+RUN cd $WORK_DIR/repos/sgkit && pip install -e .
 RUN pip install \
   -r $WORK_DIR/repos/sgkit-plink/requirements.txt \
   -r $WORK_DIR/repos/sgkit-plink/requirements-dev.txt
@@ -62,16 +67,16 @@ RUN fix-permissions $CONDA_DIR && \
 
 USER $NB_UID
 
-# Initialize github authentication for ssh access on run
+# Configure git + ssh
 RUN mkdir $HOME/.ssh && chmod 700 $HOME/.ssh && \
   ssh-keyscan -t rsa github.com >> $HOME/.ssh/known_hosts
-ENV GIT_USERNAME=eric-czech
-ENV GIT_USEREMAIL=eric.allen.czech@gmail.com
-ENV SGKIT_REPO=$SGKIT_REPO
-ENV SGKIT_PLINK_REPO=$SGKIT_PLINK_REPO
-
-CMD git config --global user.name $GIT_USERNAME && \
+RUN cd $WORK_DIR/repos/sgkit && pre-commit install && \
+  cd $WORK_DIR/repos/sgkit-plink && pre-commit install
+RUN git config --global user.name $GIT_USERNAME && \
   git config --global user.email $GIT_USEREMAIL && \
-  cd $WORK_DIR/repos/sgkit && git remote set-url origin git@github.com:$SGKIT_REPO && cd - && \
+  git config --global core.editor "vim"
+
+# Modify source repository origins to use ssh on run (bind-mounted keys must be present)
+CMD cd $WORK_DIR/repos/sgkit && git remote set-url origin git@github.com:$SGKIT_REPO && cd - && \
   cd $WORK_DIR/repos/sgkit-plink && git remote set-url origin git@github.com:$SGKIT_PLINK_REPO && cd - && \
   start-all.sh

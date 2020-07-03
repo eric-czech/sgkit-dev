@@ -19,5 +19,6 @@ docker run --rm -ti \
 -e JUPYTER_ENABLE_LAB=yes \
 -v $HOME/.ssh:/home/jovyan/.ssh \
 -v /data/disk1/dev:$WORK_DIR/data \
+-v $HOME/repos/pystatgen/sgkit-dev:$WORK_DIR/repos/sgkit-dev \
 sgkit-dev
 ```
