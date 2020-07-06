@@ -20,7 +20,7 @@ RUN $CONDA_DIR/envs/hail/bin/pip install hail
 RUN $CONDA_DIR/envs/hail/bin/python -m ipykernel install --user --name=hail
 
 # Install VS code-server
-ARG VSCODE_VERSION=3.4.1
+ARG VSCODE_VERSION=3.2.0
 RUN cd /opt \
   && wget -q https://github.com/cdr/code-server/releases/download/${VSCODE_VERSION}/code-server-${VSCODE_VERSION}-linux-x86_64.tar.gz \
   && tar -xf code-server-${VSCODE_VERSION}-linux-x86_64.tar.gz \
@@ -37,7 +37,7 @@ RUN chmod a+rx /usr/local/bin/start-all.sh /usr/local/bin/start-vscode.sh
 RUN apt-get update && apt-get install -y openssh-client \
     && rm -rf /var/lib/apt/lists/*
 
-# Download/install target repos
+# Download target repos
 ARG GIT_USERNAME=eric-czech
 ARG GIT_USEREMAIL=eric.allen.czech@gmail.com
 ARG SGKIT_REPO=eric-czech/sgkit.git
@@ -47,19 +47,25 @@ ENV SGKIT_PLINK_REPO=$SGKIT_PLINK_REPO
 RUN cd $WORK_DIR/repos && \
   git clone https://github.com/$SGKIT_REPO && \
   git clone https://github.com/$SGKIT_PLINK_REPO
-#ENV PYTHONPATH="${PYTHONPATH}:$WORK_DIR/repos/sgkit"
-ENV PYTHONPATH="${PYTHONPATH}:$WORK_DIR/repos/sgkit-plink"
 #ENV PYLINTRC="$WORK_DIR/repos/public-data-source/.pylintrc"
+
+# Install target repos
+
+ENV PYTHONPATH="${PYTHONPATH}:$WORK_DIR/repos/sgkit"
+ENV PYTHONPATH="${PYTHONPATH}:$WORK_DIR/repos/sgkit-plink"
 
 # Install pysnptools separately (does not work as pip install with conda env update)
 #RUN apt-get update && apt-get install -y g++
-#RUN /conda/envs/rapids/bin/pip install --no-cache-dir pysnptools==0.4.11
+RUN pip install --no-cache-dir pysnptools==0.4.19
 
 # See: https://jupyter-docker-stacks.readthedocs.io/en/latest/using/recipes.html#using-pip-install-or-conda-install-in-a-child-docker-image
-RUN cd $WORK_DIR/repos/sgkit && pip install -e .
-RUN pip install \
-  -r $WORK_DIR/repos/sgkit-plink/requirements.txt \
-  -r $WORK_DIR/repos/sgkit-plink/requirements-dev.txt
+#RUN cd $WORK_DIR/repos/sgkit && pip install -e .
+RUN conda install --yes \
+  --file $WORK_DIR/repos/sgkit/requirements.txt \
+  --file $WORK_DIR/repos/sgkit/requirements-dev.txt \
+  --file $WORK_DIR/repos/sgkit-plink/requirements.txt \
+  --file $WORK_DIR/repos/sgkit-plink/requirements-dev.txt \
+RUN conda install python-dotenv
 
 # Ensure this always occurs last before user switch
 RUN fix-permissions $CONDA_DIR && \
@@ -77,6 +83,8 @@ RUN git config --global user.name $GIT_USERNAME && \
   git config --global core.editor "vim"
 
 # Modify source repository origins to use ssh on run (bind-mounted keys must be present)
-CMD cd $WORK_DIR/repos/sgkit && git remote set-url origin git@github.com:$SGKIT_REPO && cd - && \
+CMD cd $WORK_DIR/repos/sgkit && \
+  git remote set-url origin git@github.com:$SGKIT_REPO && \
+  git remote add upstream git@github.com:pystatgen/sgkit.git && cd - && \
   cd $WORK_DIR/repos/sgkit-plink && git remote set-url origin git@github.com:$SGKIT_PLINK_REPO && cd - && \
   start-all.sh

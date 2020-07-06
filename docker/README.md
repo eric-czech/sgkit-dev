@@ -10,9 +10,9 @@ Run:
 
 ```bash
 WORK_DIR=/home/jovyan/work
-docker run --rm -ti \
+docker run -ti \
 -e GRANT_SUDO=yes --user=root \
--p 8898:8888 -p 8897:8887 \
+-p 8898:8888 -p 8897:8887 -p 8000:8000 \
 -e JUPYTER_TOKEN=ItORmEnSTaTeNloRADHonisi \
 -e VSCODE_TOKEN=ItORmEnSTaTeNloRADHonisi \
 -e SPARK_DRIVER_MEMORY=64g \
