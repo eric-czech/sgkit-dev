@@ -1,0 +1,17 @@
+channels:
+- conda-forge
+- defaults
+dependencies:
+- black
+- flake8
+- isort
+- mypy
+- pre-commit
+- pylint
+- pytest
+- pytest-datadir
+- pytest-cov
+- statsmodels
+- python-dotenv
+- matplotlib
+- rope # for refactor

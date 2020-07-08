@@ -33,39 +33,15 @@ COPY dev.code-workspace $WORK_DIR/
 COPY start-all.sh start-vscode.sh /usr/local/bin/
 RUN chmod a+rx /usr/local/bin/start-all.sh /usr/local/bin/start-vscode.sh
 
-# Install misc system packages
-RUN apt-get update && apt-get install -y openssh-client \
-    && rm -rf /var/lib/apt/lists/*
-
-# Download target repos
-ARG GIT_USERNAME=eric-czech
-ARG GIT_USEREMAIL=eric.allen.czech@gmail.com
-ARG SGKIT_REPO=eric-czech/sgkit.git
-ARG SGKIT_PLINK_REPO=eric-czech/sgkit-plink.git
-ENV SGKIT_REPO=$SGKIT_REPO
-ENV SGKIT_PLINK_REPO=$SGKIT_PLINK_REPO
-RUN cd $WORK_DIR/repos && \
-  git clone https://github.com/$SGKIT_REPO && \
-  git clone https://github.com/$SGKIT_PLINK_REPO
-#ENV PYLINTRC="$WORK_DIR/repos/public-data-source/.pylintrc"
-
-# Install target repos
-
-ENV PYTHONPATH="${PYTHONPATH}:$WORK_DIR/repos/sgkit"
-ENV PYTHONPATH="${PYTHONPATH}:$WORK_DIR/repos/sgkit-plink"
-
 # Install pysnptools separately (does not work as pip install with conda env update)
-#RUN apt-get update && apt-get install -y g++
 RUN pip install --no-cache-dir pysnptools==0.4.19
 
+# Install dev environment packages
 # See: https://jupyter-docker-stacks.readthedocs.io/en/latest/using/recipes.html#using-pip-install-or-conda-install-in-a-child-docker-image
-#RUN cd $WORK_DIR/repos/sgkit && pip install -e .
-RUN conda install --yes \
-  --file $WORK_DIR/repos/sgkit/requirements.txt \
-  --file $WORK_DIR/repos/sgkit/requirements-dev.txt \
-  --file $WORK_DIR/repos/sgkit-plink/requirements.txt \
-  --file $WORK_DIR/repos/sgkit-plink/requirements-dev.txt \
-RUN conda install python-dotenv
+COPY environment.yml environment-dev.yml /tmp/
+RUN conda env update -n base \
+  --file /tmp/environment.yml \
+  --file /tmp/environment-dev.yml
 
 # Ensure this always occurs last before user switch
 RUN fix-permissions $CONDA_DIR && \
@@ -73,18 +49,8 @@ RUN fix-permissions $CONDA_DIR && \
 
 USER $NB_UID
 
-# Configure git + ssh
-RUN mkdir $HOME/.ssh && chmod 700 $HOME/.ssh && \
-  ssh-keyscan -t rsa github.com >> $HOME/.ssh/known_hosts
-RUN cd $WORK_DIR/repos/sgkit && pre-commit install && \
-  cd $WORK_DIR/repos/sgkit-plink && pre-commit install
-RUN git config --global user.name $GIT_USERNAME && \
-  git config --global user.email $GIT_USEREMAIL && \
-  git config --global core.editor "vim"
+ENV PYTHONPATH="${PYTHONPATH}:$WORK_DIR/repos/sgkit"
+ENV PYTHONPATH="${PYTHONPATH}:$WORK_DIR/repos/sgkit-plink"
+#ENV PYLINTRC="$WORK_DIR/repos/public-data-source/.pylintrc"
 
-# Modify source repository origins to use ssh on run (bind-mounted keys must be present)
-CMD cd $WORK_DIR/repos/sgkit && \
-  git remote set-url origin git@github.com:$SGKIT_REPO && \
-  git remote add upstream git@github.com:pystatgen/sgkit.git && cd - && \
-  cd $WORK_DIR/repos/sgkit-plink && git remote set-url origin git@github.com:$SGKIT_PLINK_REPO && cd - && \
-  start-all.sh
+CMD start-all.sh

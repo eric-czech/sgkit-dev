@@ -2,8 +2,7 @@
 #include<stdio.h>
 #include<stdlib.h>
 
-double hwep(int obs_hets, int obs_hom1, int obs_hom2)
-   {
+double hwep(int obs_hets, int obs_hom1, int obs_hom2){
    if (obs_hom1 < 0 || obs_hom2 < 0 || obs_hets < 0) 
       {
       printf("FATAL ERROR - SNP-HWE: Current genotype configuration (%d  %d %d ) includes a"
@@ -67,7 +66,7 @@ double hwep(int obs_hets, int obs_hom1, int obs_hom2)
       }
 
    for (i = 0; i <= rare_copies; i++)
-      het_probs[i] /= sum;
+      het_probs[i] /= (sum > 0 ? sum : 1e-128);
 
    /* alternate p-value calculation for p_hi/p_lo
    double p_hi = het_probs[obs_hets];
@@ -96,4 +95,4 @@ double hwep(int obs_hets, int obs_hom1, int obs_hom2)
    free(het_probs);
 
    return p_hwe;
-   }
+}
