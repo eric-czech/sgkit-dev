@@ -4,6 +4,32 @@ RUN mkdir $WORK_DIR/repos $WORK_DIR/auth $WORK_DIR/data $WORK_DIR/logs
 
 USER root
 
+# Install bgen
+# See: https://enkre.net/cgi-bin/code/bgen/dir?ci=trunk
+RUN apt-get update && \
+  apt-get install -y zlib1g-dev && \
+  rm -rf /var/lib/apt/lists/*
+RUN cd /opt && \
+  wget http://code.enkre.net/bgen/tarball/release/bgen.tgz && \
+  tar -xvf bgen.tgz && \
+  mv bgen.tgz bgen && \
+  cd bgen && \
+  ./waf configure && \
+  ./waf &&
+  ./build/test/unit/test_bgen > /dev/null
+
+# Install regenie
+# See: https://rgcgithub.github.io/regenie/install/
+# There were no tags/releases at TOW so arbitrarily pick
+# https://github.com/rgcgithub/regenie/commit/2e121b9756e600fb0f5c53192bbaba873a176e0c
+RUN cd $WORK_DIR/repos && \
+  git clone https://github.com/rgcgithub/regenie.git && \
+  cd regenie && \
+  git checkout 2e121b9756e600fb0f5c53192bbaba873a176e0c && \
+  sed -i 's@BGEN_PATH =@BGEN_PATH =/opt/bgen@' Makefile && \
+  make && \
+  ln -s $WORK_DIR/repos/regenie/regenie /usr/local/bin/regenie
+
 # Install hail
 # See:
 # - https://github.com/eric-czech/hail-experiments/blob/master/Dockerfile
