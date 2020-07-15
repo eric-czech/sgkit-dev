@@ -1,0 +1,29 @@
+name: glow
+channels:
+  - conda-forge
+dependencies:
+  - python=3.7
+  - numpy
+  - scipy
+  - nomkl # Skip MKL for local development
+  # See: https://spark.apache.org/docs/latest/sql-pyspark-pandas-with-arrow.html#recommended-pandas-and-pyarrow-versions
+  - pandas=0.25.3
+  - pyarrow=0.15.1
+  - pyspark=2.4.5
+  - pyyaml
+  - pip
+  # - bedtools
+  # - jinja2
+  # - pytest
+  # - sphinx
+  # - sphinx_rtd_theme
+  - pip:
+    - typeguard==2.5.0
+    - nptyping==1.1.0
+    - glow.py==0.5.0
+    # - yapf==0.30.0
+    # - setuptools==41.2.0 # Python packaging
+    # - twine==2.0.0 # Pypi publishing
+    # - Sphinx-Substitution-Extensions==2019.6.15.0 # Substitutions in code blocks
+    # - sphinx-tabs==1.1.13 # Code tabs (Python/Scala)
+    # - sybil==1.2.0 # Automatic doctest
