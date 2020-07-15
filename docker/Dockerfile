@@ -40,10 +40,16 @@ RUN mkdir -p /usr/share/man/man1 && \
     openjdk-8-jre-headless \
     && rm -rf /var/lib/apt/lists/*
 # Note that hail does not run on py3.8 @ TOW
-RUN conda create --quiet --yes -p $CONDA_DIR/envs/hail python=3.7 ipython ipykernel && \
+RUN conda create --quiet --yes -p $CONDA_DIR/envs/hail python=3.7 ipython ipykernel pyarrow=0.15.1 && \
     conda clean --all -f -y
-RUN $CONDA_DIR/envs/hail/bin/pip install hail
+RUN $CONDA_DIR/envs/hail/bin/pip install hail==0.2.47 glow.py==0.5.0
 RUN $CONDA_DIR/envs/hail/bin/python -m ipykernel install --user --name=hail
+
+# /opt/conda/bin/conda env create -f /tmp/glow-env.yml
+# export SPARK_DRIVER_MEMORY=64g
+# Needed to avoid https://issues.apache.org/jira/browse/SPARK-29367
+# See: https://spark.apache.org/docs/latest/sql-pyspark-pandas-with-arrow.html#compatibility-setting-for-pyarrow--0150-and-spark-23x-24x
+# export ARROW_PRE_0_15_IPC_FORMAT=1
 
 # Install VS code-server
 ARG VSCODE_VERSION=3.2.0
