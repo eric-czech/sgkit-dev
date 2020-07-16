@@ -30,7 +30,7 @@ RUN cd $WORK_DIR/repos && \
   make && \
   ln -s $WORK_DIR/repos/regenie/regenie /usr/local/bin/regenie
 
-# Install hail
+# Install Hail
 # See:
 # - https://github.com/eric-czech/hail-experiments/blob/master/Dockerfile
 # - https://hail.is/docs/0.2/getting_started.html
@@ -42,14 +42,15 @@ RUN mkdir -p /usr/share/man/man1 && \
 # Note that hail does not run on py3.8 @ TOW
 RUN conda create --quiet --yes -p $CONDA_DIR/envs/hail python=3.7 ipython ipykernel pyarrow=0.15.1 && \
     conda clean --all -f -y
-RUN $CONDA_DIR/envs/hail/bin/pip install hail==0.2.47 glow.py==0.5.0
+RUN $CONDA_DIR/envs/hail/bin/pip install hail==0.2.47
 RUN $CONDA_DIR/envs/hail/bin/python -m ipykernel install --user --name=hail
 
-# /opt/conda/bin/conda env create -f /tmp/glow-env.yml
-# export SPARK_DRIVER_MEMORY=64g
-# Needed to avoid https://issues.apache.org/jira/browse/SPARK-29367
-# See: https://spark.apache.org/docs/latest/sql-pyspark-pandas-with-arrow.html#compatibility-setting-for-pyarrow--0150-and-spark-23x-24x
-# export ARROW_PRE_0_15_IPC_FORMAT=1
+# Install Glow
+COPY environment-glow.yml /tmp/
+RUN conda env create -p $CONDA_DIR/envs/glow -f /tmp/environment-glow.yml && \
+    conda clean --all -f -y
+RUN $CONDA_DIR/envs/glow/bin/pip install glow.py==0.5.0
+RUN $CONDA_DIR/envs/glow/bin/python -m ipykernel install --user --name=glow
 
 # Install VS code-server
 ARG VSCODE_VERSION=3.2.0
@@ -83,6 +84,12 @@ USER $NB_UID
 
 ENV PYTHONPATH="${PYTHONPATH}:$WORK_DIR/repos/sgkit"
 ENV PYTHONPATH="${PYTHONPATH}:$WORK_DIR/repos/sgkit-plink"
-#ENV PYLINTRC="$WORK_DIR/repos/public-data-source/.pylintrc"
+
+ARG SPARK_DRIVER_MEMORY=64g
+ENV SPARK_DRIVER_MEMORY=$SPARK_DRIVER_MEMORY
+# Set this as needed to avoid https://issues.apache.org/jira/browse/SPARK-29367
+# with any pyspark 2.4.x + pyarrow >= 0.15.x
+# See: https://spark.apache.org/docs/latest/sql-pyspark-pandas-with-arrow.html#compatibility-setting-for-pyarrow--0150-and-spark-23x-24x
+ENV ARROW_PRE_0_15_IPC_FORMAT=1
 
 CMD start-all.sh

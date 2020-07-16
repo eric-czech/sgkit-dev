@@ -2,6 +2,7 @@ channels:
 - conda-forge
 - defaults
 dependencies:
+# CICD dependencies
 - black
 - flake8
 - isort
@@ -11,10 +12,13 @@ dependencies:
 - pytest
 - pytest-datadir
 - pytest-cov
+# Validation/visualization dependencies
 - statsmodels
 - python-dotenv
 - matplotlib
-- rope # for refactor
+- rope # for code refactor
 - graphviz
 - python-graphviz
 - scikit-learn
+- fire
+- pyarrow
