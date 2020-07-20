@@ -60,6 +60,41 @@ def reshape_for_gwas(spark, label_df):
     return spark.createDataFrame(transposed_df[['values_array']].reset_index(), column_names)
 
 
+def infer_chromosomes(blockdf: DataFrame) -> List[str]:
+    # From: https://github.com/projectglow/glow/blob/master/python/glow/wgr/linear_model/functions.py#L328
+    # Regex captures the chromosome name in the header
+    # level 1 header: chr_3_block_8_alpha_0_label_sim100
+    # level 2 header: chr_3_alpha_0_label_sim100
+    chromosomes = [
+        r.chromosome for r in blockdf.select(
+            F.regexp_extract('header', r"^chr_(.+?)_(alpha|block)", 1).alias(
+                'chromosome')).distinct().collect()
+    ]
+    print(f'Inferred chromosomes: {chromosomes}')
+    return chromosomes
+
+def transform_loco(self,
+        blockdf: DataFrame,
+        labeldf: pd.DataFrame,
+        sample_blocks: Dict[str, List[str]],
+        modeldf: DataFrame,
+        cvdf: DataFrame,
+        covdf: pd.DataFrame = pd.DataFrame({}),
+        chromosomes: List[str] = []) -> pd.DataFrame:
+        # From https://github.com/projectglow/glow/blob/master/python/glow/wgr/linear_model/ridge_model.py#L320
+        loco_chromosomes = chromosomes if chromosomes else infer_chromosomes(blockdf)
+        loco_chromosomes.sort()
+
+        all_y_hat_df = pd.DataFrame({})
+        for chromosome in loco_chromosomes:
+            loco_model_df = modeldf.filter(
+                ~F.col('header').rlike(f'^chr_{chromosome}_(alpha|block)'))
+            loco_y_hat_df = self.transform(blockdf, labeldf, sample_blocks, loco_model_df, cvdf,
+                                           covdf)
+            loco_y_hat_df['contigName'] = chromosome
+            all_y_hat_df = all_y_hat_df.append(loco_y_hat_df)
+        return all_y_hat_df.set_index('contigName', append=True)
+
 def run(
     plink_path: str,
     traits_path: str,
@@ -132,41 +167,50 @@ def run(
     stack = RidgeReducer(alphas=alphas)
     reduced_block_df = stack.fit_transform(block_df, label_df, sample_blocks, cov_df)
     logger.info(HR)
-    logger.info('Reduced block schema:')
+    logger.info('Stage 1: Reduced block schema:')
     reduced_block_df.printSchema()
 
     path = output_path / 'reduced_blocks.parquet'
     reduced_block_df.write.parquet(str(path), mode='overwrite')
-    logger.info(f'Reduced blocks written to {path}')
+    logger.info(f'Stage 1: Reduced blocks written to {path}')
 
     # Flatten to scalars for more convenient access w/o Spark
     flat_reduced_block_df = spark.read.parquet(str(path))
     path = output_path / 'reduced_blocks_flat.parquet'
     flat_reduced_block_df = _flatten_reduced_blocks(flat_reduced_block_df)
     flat_reduced_block_df.write.parquet(str(path), mode='overwrite')
-    logger.info(f'Flattened reduced blocks written to {path}')
+    logger.info(f'Stage 1: Flattened reduced blocks written to {path}')
 
     ###########
     # Stage 2 #
     ###########
     
+    # Monkey-patch this in until there's a glow release beyond 0.5.0
+    RidgeRegression.transform_loco = transform_loco 
     estimator = RidgeRegression(alphas=alphas)
     model_df, cv_df = estimator.fit(reduced_block_df, label_df, sample_blocks, cov_df)
     logger.info(HR)
-    logger.info('Model schema:')
+    logger.info('Stage 2: Model schema:')
     model_df.printSchema()
-    logger.info('CV schema:')
+    logger.info('Stage 2: CV schema:')
     cv_df.printSchema()
 
     y_hat_df = estimator.transform(reduced_block_df, label_df, sample_blocks, model_df, cv_df, cov_df)
+
     logger.info(HR)
-    logger.info('Prediction info:')
+    logger.info('Stage 2: Prediction info:')
     logger.info(y_hat_df.info())
     logger.info(y_hat_df.head(5))
 
     path = output_path / 'predictions.csv'
     y_hat_df.reset_index().to_csv(path, index=False)
-    logger.info(f'Predictions written to {path}')
+    logger.info(f'Stage 2: Predictions written to {path}')
+
+    # y_hat_df = estimator.transform_loco(reduced_block_df, label_df, sample_blocks, model_df, cv_df, cov_df)
+
+    # path = output_path / 'predictions_loco.csv'
+    # y_hat_df.reset_index().to_csv(path, index=False)
+    # logger.info(f'Stage 2: LOCO Predictions written to {path}')
 
     ###########
     # Stage 3 #
@@ -175,43 +219,77 @@ def run(
     # Convert the pandas dataframe into a Spark DataFrame
     adjusted_phenotypes = reshape_for_gwas(spark, label_df - y_hat_df)
 
-    variant_df.write.parquet('/tmp/variant_df.parquet', mode='overwrite')
-
-    # Run GWAS (this could be for a much larger set of variants)
+    # Run GWAS w/o LOCO (this could be for a much larger set of variants)
     wgr_gwas = (
-        variant_df
-        .withColumnRenamed('values', 'callValues')
-        .crossJoin(
-            adjusted_phenotypes
-            .withColumnRenamed('values', 'phenotypeValues')
+            variant_df
+            .withColumnRenamed('values', 'callValues')
+            .crossJoin(
+                adjusted_phenotypes
+                .withColumnRenamed('values', 'phenotypeValues')
+            )
+            .select(
+                'start',
+                'names',
+                'label',
+                expand_struct(linear_regression_gwas( 
+                    F.col('callValues'),
+                    F.col('phenotypeValues'),
+                    F.lit(cov_df.to_numpy())
+                ))
+            )
         )
-        .select(
-            'start',
-            'names',
-            'label',
-            expand_struct(linear_regression_gwas( 
-                F.col('callValues'),
-                F.col('phenotypeValues'),
-                F.lit(cov_df.to_numpy())
-            ))
-        )
-    )
+
     logger.info(HR)
-    logger.info('GWAS schema:')
+    logger.info('Stage 3: GWAS (no LOCO) schema:')
     wgr_gwas.printSchema()
     
     # Convert to pandas
     wgr_gwas = wgr_gwas.toPandas()
     logger.info(HR)
-    logger.info('GWAS info:')
+    logger.info('Stage 3: GWAS (no LOCO) info:')
     logger.info(wgr_gwas.info())
     logger.info(wgr_gwas.head(5))
     
     path = output_path / 'gwas.csv'
     wgr_gwas.to_csv(path, index=False)
-    logger.info(f'GWAS results written to {path}')
+    logger.info(f'Stage 3: GWAS (no LOCO) results written to {path}')
     logger.info(HR)
     logger.info('Done')
+
+    # Run GWAS w/ LOCO
+    # wgr_gwas = (
+    #     variant_df
+    #     .withColumnRenamed('values', 'callValues')
+    #     .join(
+    #         adjusted_phenotypes
+    #         .withColumnRenamed('values', 'phenotypeValues'),
+    #         ['contigName']
+    #     )
+    #     .select(
+    #         'contigName',
+    #         'start',
+    #         'names',
+    #         'label',
+    #         expand_struct(linear_regression_gwas( 
+    #             F.col('callValues'),
+    #             F.col('phenotypeValues'),
+    #             F.lit(cov_df.to_numpy())
+    #         ))
+    #     )
+    # )
+
+    # # Convert to pandas
+    # wgr_gwas = wgr_gwas.toPandas()
+    # logger.info(HR)
+    # logger.info('Stage 3: GWAS (with LOCO) info:')
+    # logger.info(wgr_gwas.info())
+    # logger.info(wgr_gwas.head(5))
+    
+    # path = output_path / 'gwas_loco.csv'
+    # wgr_gwas.to_csv(path, index=False)
+    # logger.info(f'Stage 3: GWAS (with LOCO) results written to {path}')
+    # logger.info(HR)
+    # logger.info('Done')
 
     
 if __name__ == '__main__':
