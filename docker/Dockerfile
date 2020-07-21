@@ -6,29 +6,29 @@ USER root
 
 # Install bgen
 # See: https://enkre.net/cgi-bin/code/bgen/dir?ci=trunk
-RUN apt-get update && \
-  apt-get install -y zlib1g-dev && \
-  rm -rf /var/lib/apt/lists/*
-RUN cd /opt && \
-  wget http://code.enkre.net/bgen/tarball/release/bgen.tgz && \
-  tar -xvf bgen.tgz && \
-  mv bgen.tgz bgen && \
-  cd bgen && \
-  ./waf configure && \
-  ./waf &&
-  ./build/test/unit/test_bgen > /dev/null
+# RUN apt-get update && \
+#   apt-get install -y zlib1g-dev && \
+#   rm -rf /var/lib/apt/lists/*
+# RUN cd /opt && \
+#   wget http://code.enkre.net/bgen/tarball/release/bgen.tgz && \
+#   tar -xvf bgen.tgz && \
+#   mv bgen.tgz bgen && \
+#   cd bgen && \
+#   ./waf configure && \
+#   ./waf && \
+#   ./build/test/unit/test_bgen > /dev/null
 
 # Install regenie
 # See: https://rgcgithub.github.io/regenie/install/
 # There were no tags/releases at TOW so arbitrarily pick
 # https://github.com/rgcgithub/regenie/commit/2e121b9756e600fb0f5c53192bbaba873a176e0c
-RUN cd $WORK_DIR/repos && \
-  git clone https://github.com/rgcgithub/regenie.git && \
-  cd regenie && \
-  git checkout 2e121b9756e600fb0f5c53192bbaba873a176e0c && \
-  sed -i 's@BGEN_PATH =@BGEN_PATH =/opt/bgen@' Makefile && \
-  make && \
-  ln -s $WORK_DIR/repos/regenie/regenie /usr/local/bin/regenie
+# RUN cd $WORK_DIR/repos && \
+#   git clone https://github.com/rgcgithub/regenie.git && \
+#   cd regenie && \
+#   git checkout 2e121b9756e600fb0f5c53192bbaba873a176e0c && \
+#   sed -i 's@BGEN_PATH =@BGEN_PATH =/opt/bgen@' Makefile && \
+#   make && \
+#   ln -s $WORK_DIR/repos/regenie/regenie /usr/local/bin/regenie
 
 # Install Hail
 # See:
@@ -40,7 +40,7 @@ RUN mkdir -p /usr/share/man/man1 && \
     openjdk-8-jre-headless \
     && rm -rf /var/lib/apt/lists/*
 # Note that hail does not run on py3.8 @ TOW
-RUN conda create --quiet --yes -p $CONDA_DIR/envs/hail python=3.7 ipython ipykernel pyarrow=0.15.1 && \
+RUN conda create --quiet --yes -p $CONDA_DIR/envs/hail python=3.7 ipython ipykernel pyarrow=0.15.1 fire && \
     conda clean --all -f -y
 RUN $CONDA_DIR/envs/hail/bin/pip install hail==0.2.47
 RUN $CONDA_DIR/envs/hail/bin/python -m ipykernel install --user --name=hail
@@ -66,15 +66,14 @@ COPY dev.code-workspace $WORK_DIR/
 COPY start-all.sh start-vscode.sh /usr/local/bin/
 RUN chmod a+rx /usr/local/bin/start-all.sh /usr/local/bin/start-vscode.sh
 
-# Install pysnptools separately (does not work as pip install with conda env update)
-RUN pip install --no-cache-dir pysnptools==0.4.19
-
 # Install dev environment packages
 # See: https://jupyter-docker-stacks.readthedocs.io/en/latest/using/recipes.html#using-pip-install-or-conda-install-in-a-child-docker-image
 COPY environment.yml environment-dev.yml /tmp/
-RUN conda env update -n base \
-  --file /tmp/environment.yml \
-  --file /tmp/environment-dev.yml
+RUN conda env update -n base --file /tmp/environment.yml
+RUN conda env update -n base --file /tmp/environment-dev.yml
+
+# Install pysnptools separately (does not work as pip install with conda env update)
+RUN pip install --no-cache-dir pysnptools==0.4.19
 
 # Ensure this always occurs last before user switch
 RUN fix-permissions $CONDA_DIR && \
@@ -84,6 +83,9 @@ USER $NB_UID
 
 ENV PYTHONPATH="${PYTHONPATH}:$WORK_DIR/repos/sgkit"
 ENV PYTHONPATH="${PYTHONPATH}:$WORK_DIR/repos/sgkit-plink"
+ENV OMP_NUM_THREADS=1
+ENV MKL_NUM_THREADS=1
+ENV OPENBLAS_NUM_THREADS=1
 
 ARG SPARK_DRIVER_MEMORY=64g
 ENV SPARK_DRIVER_MEMORY=$SPARK_DRIVER_MEMORY

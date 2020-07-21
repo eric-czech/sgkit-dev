@@ -1,0 +1,8 @@
+datasets:
+  sim_01:
+    n_variants: 1000
+    n_samples: 250
+    n_contigs: 1
+    n_covars: 3
+    n_traits: 1
+   

@@ -9,6 +9,7 @@ import numpy as np
 import pyspark.sql.functions as F
 from pyspark.sql.session import SparkSession
 import glow
+import pkg_resources
 from typing import Optional
 from glow import *
 from glow.wgr.functions import *
@@ -21,6 +22,8 @@ logging.basicConfig(
 )
 
 HR = '-' * 50
+
+glow_version = pkg_resources.get_distribution("glow.py").version
 
 def spark_session():
     spark = SparkSession.builder\
@@ -186,6 +189,9 @@ def run(
     ###########
     
     # Monkey-patch this in until there's a glow release beyond 0.5.0
+    if glow_version != '0.5.0':
+        raise NotImplementedError(f'Must remove adjustements for glow != 0.5.0 (found {glow_version})')
+    # Remove after glow update
     RidgeRegression.transform_loco = transform_loco 
     estimator = RidgeRegression(alphas=alphas)
     model_df, cv_df = estimator.fit(reduced_block_df, label_df, sample_blocks, cov_df)
@@ -216,6 +222,12 @@ def run(
     # Stage 3 #
     ###########
     
+    # Do this to correct for the error in Glow at https://github.com/projectglow/glow/issues/257
+    if glow_version != '0.5.0':
+        raise NotImplementedError(f'Must remove adjustements for glow != 0.5.0 (found {glow_version})')
+    cov_arr = cov_df.to_numpy()
+    cov_arr = cov_arr.T.ravel(order='C').reshape(cov_arr.shape)
+
     # Convert the pandas dataframe into a Spark DataFrame
     adjusted_phenotypes = reshape_for_gwas(spark, label_df - y_hat_df)
 
@@ -234,7 +246,7 @@ def run(
                 expand_struct(linear_regression_gwas( 
                     F.col('callValues'),
                     F.col('phenotypeValues'),
-                    F.lit(cov_df.to_numpy())
+                    F.lit(cov_arr)
                 ))
             )
         )
@@ -273,7 +285,7 @@ def run(
     #         expand_struct(linear_regression_gwas( 
     #             F.col('callValues'),
     #             F.col('phenotypeValues'),
-    #             F.lit(cov_df.to_numpy())
+    #             F.lit(cov_arr)
     #         ))
     #     )
     # )
