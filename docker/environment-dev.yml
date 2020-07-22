@@ -21,4 +21,5 @@ dependencies:
 - python-graphviz
 - scikit-learn
 - fire
+- invoke
 - pyarrow
