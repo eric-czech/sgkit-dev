@@ -12,6 +12,7 @@ dependencies:
 - pytest
 - pytest-datadir
 - pytest-cov
+- hypothesis
 # Validation/visualization dependencies
 - statsmodels
 - python-dotenv

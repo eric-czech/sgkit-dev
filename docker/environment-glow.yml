@@ -5,7 +5,7 @@ dependencies:
   - python=3.7
   - numpy
   - scipy
-  - nomkl # Skip MKL for local development
+  - nomkl
   # See: https://spark.apache.org/docs/latest/sql-pyspark-pandas-with-arrow.html#recommended-pandas-and-pyarrow-versions
   # If conflict occurs, downgrade pandas to 0.24.2 and let it upgrade on glow pip install to 0.25.3
   - pandas=0.25.3
