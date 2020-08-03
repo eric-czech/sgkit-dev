@@ -1,5 +1,11 @@
 ## BGEN Benchmarks
 
+These scripts/notebooks compare scan times over a single UKB bgen file for [pybgen](https://github.com/lemieuxl/pybgen), [bgen_reader](), and [bgen_reader2](https://fastlmm.github.io/PySnpTools/branch/bgen2/index.html).
+
+See https://github.com/limix/bgen-reader-py/issues/30.
+
+### Local Copy 
+
 Copy single file for testing:
 
 ```bash
@@ -11,7 +17,11 @@ cp ~/data/rs-ukb/raw-data/gt-imputation/$f ~/data/bgen-copy/
 done
 ```
 
-Run benchmarks:
+### Benchmarks
+
+Single file scan times:
+
+**PyBGEN**
 
 ```bash
 time python pybgen_exec.py run --path=$HOME/data/bgen-copy/ukb_imp_chrXY_v3.bgen
@@ -19,48 +29,35 @@ Number of entries read: 22330652358
 real    28m8.098s
 user    24m19.641s
 sys     1m39.239s
+```
 
+**bgen_reader**
 
+```bash
 rm -f $HOME/data/bgen-copy/ukb_imp_chrXY_v3.bgen.metafile
 time python bgen_reader_exec.py run --path=$HOME/data/bgen-copy/ukb_imp_chrXY_v3.bgen
 Found 45906 variants
 # Killed after ~1hr -- fetching 3 variants per second ==> 15302 seconds > 4 hrs
-Found 45906 variants
 ```
 
-## BGEN2
+**bgen_reader2**
 
-Carl's instructions for using BGEN in pysnptools:
+```bash
+# Note: metadata file built first and not included in this running time
+time python bgen_reader2_exec.py run --path=$HOME/data/bgen-copy/ukb_imp_chrXY_v3.bgen --batch-size=1000
+Number of entries read: 22330652358
+real    34m40.963s
+user    26m50.861s
+sys     3m36.176s
+```
+
+Pybgen time estimate for entire imputed set on single core: 28m/4.6G (4797967 bytes) * 2.4T = 14.6k mins = 10.1 days
+
+### BGEN Reader 2
+
+Install:
 
 ```bash
 pip uninstall bgen-reader
 pip install https://github.com/fastlmm/PySnpTools/releases/download/untagged2/bgen_reader-4.0.4-cp37-cp37m-manylinux1_x86_64.whl
-```
-
-Example script:
-
-```python
-from bgen_reader import example_filepath, open_bgen
-import tracemalloc
-import os
-import time
-
-
-tracemalloc.start() # May slow down the run slightly
-start = time.time()
-# filename = "/mnt/m/deldir/genbgen/good/merged_487400x220000.bgen"
-filename = "/mnt/m/deldir/genbgen/good/merged_487400x1100000.bgen"
-
-with open_bgen(filename) as bgen:
-    val = bgen.read(slice(1000000, 1000031))
-    # val = bgen.read(1000000)
-    # val = bgen.read((slice(200000,200031),slice(1000000,1000031)))
-    print("{0},{1:,}".format(val.shape, val.shape[0] * val.shape[1]))
-
- 
-
-current, peak = tracemalloc.get_traced_memory()
-print(f"Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB")
-print("Time = {0} seconds".format(time.time() - start))
-tracemalloc.stop()
 ```
