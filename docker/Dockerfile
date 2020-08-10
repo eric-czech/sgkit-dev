@@ -73,7 +73,7 @@ RUN conda env update -n base --file /tmp/environment.yml
 RUN conda env update -n base --file /tmp/environment-dev.yml
 
 # Install pysnptools separately (does not work as pip install with conda env update)
-RUN pip install --no-cache-dir pysnptools==0.4.19
+RUN pip install --no-cache-dir pysnptools==0.4.20
 
 # Ensure this always occurs last before user switch
 RUN fix-permissions $CONDA_DIR && \

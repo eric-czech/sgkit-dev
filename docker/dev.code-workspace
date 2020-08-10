@@ -2,6 +2,7 @@
         "folders": [
                 {"path": "repos/sgkit"},
                 {"path": "repos/sgkit-plink"},
+                {"path": "repos/sgkit-bgen"},
                 {"path": "repos/sgkit-dev"}
         ],
         "settings": {
