@@ -13,7 +13,7 @@ Copy single file for testing:
 set -x
 for f in ukb_imp_chrXY_v3.bgen ukb_mfi_chrXY_v3.txt ukb_imp_chrXY_v3.bgen.bgi ukb59384_imp_chrXY_v3_s486331.sample
 do
-cp ~/data/rs-ukb/raw-data/gt-imputation/$f ~/data/bgen-copy/
+cp ~/data/rs-ukb/raw-data/gt-imputation/$f ~/data/rs-ukb-local/bgen/
 done
 ```
 
@@ -24,7 +24,8 @@ Single file scan times:
 **PyBGEN**
 
 ```bash
-time python pybgen_exec.py run --path=$HOME/data/bgen-copy/ukb_imp_chrXY_v3.bgen
+conda activate ukb-analysis
+time python pybgen_exec.py run --path=$HOME/data/rs-ukb-local/bgen/ukb_imp_chrXY_v3.bgen
 Number of entries read: 22330652358
 real    28m8.098s
 user    24m19.641s
@@ -33,18 +34,34 @@ sys     1m39.239s
 
 **bgen_reader**
 
+For `bgen_reader` 4.0.4:
+
 ```bash
+conda activate ukb-analysis
+pip freeze | grep bgen-reader
+# bgen-reader==4.0.4
 rm -f $HOME/data/bgen-copy/ukb_imp_chrXY_v3.bgen.metafile
-time python bgen_reader_exec.py run --path=$HOME/data/bgen-copy/ukb_imp_chrXY_v3.bgen
+time python bgen_reader_exec.py run --path=$HOME/data/rs-ukb-local/bgen/ukb_imp_chrXY_v3.bgen
 Found 45906 variants
 # Killed after ~1hr -- fetching 3 variants per second ==> 15302 seconds > 4 hrs
+```
+
+For `bgen_reader` 4.0.5:
+
+See [bgen_reader_prof.ipynb](bgen_reader_prof.ipynb).
+
+```
+Number of entries read: 22330652358
+CPU times: user 21min 55s, sys: 22.3 s, total: 22min 17s
+Wall time: 22min 50s
 ```
 
 **bgen_reader2**
 
 ```bash
+conda activate bgen_reader_beta
 # Note: metadata file built first and not included in this running time
-time python bgen_reader2_exec.py run --path=$HOME/data/bgen-copy/ukb_imp_chrXY_v3.bgen --batch-size=1000
+time python bgen_reader2_exec.py run --path=$HOME/data/rs-ukb-local/bgen/ukb_imp_chrXY_v3.bgen --batch-size=1000
 Found 45906 variants
 reading -- time=0:00:35.34, part 990 of 1,000
 reading -- time=0:00:36.73, part 990 of 1,000

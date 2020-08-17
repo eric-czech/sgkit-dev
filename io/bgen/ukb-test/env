@@ -1,1 +1,1 @@
-export UKB_BGEN_XY_PATH=${HOME}/data/bgen-copy/ukb_imp_chrXY_v3.bgen
+export UKB_BGEN_XY_PATH=${HOME}/data/rs-ukb-local/bgen/ukb_imp_chrXY_v3.bgen

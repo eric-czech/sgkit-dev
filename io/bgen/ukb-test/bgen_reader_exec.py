@@ -14,4 +14,5 @@ def run(path):
         ct += geno['probs'].shape[0]
     print(f'Number of entries read: {ct}')
 
-fire.Fire()
+if __name__ == '__main__':
+    fire.Fire()
