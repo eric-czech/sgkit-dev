@@ -23,5 +23,7 @@ docker run --rm -ti \
 -v $HOME/repos/pystatgen/sgkit-plink:$WORK_DIR/repos/sgkit-plink \
 -v $HOME/repos/pystatgen/sgkit-bgen:$WORK_DIR/repos/sgkit-bgen \
 -v $HOME/repos/pystatgen/sgkit-dev:$WORK_DIR/repos/sgkit-dev \
+-v $HOME/repos/rs/ukb-analysis:$WORK_DIR/repos/ukb-analysis \
+-v $HOME/repos/rs/ukb-gwas-pipeline-nealelab:$WORK_DIR/repos/ukb-gwas-pipeline-nealelab \
 sgkit-dev
 ```
